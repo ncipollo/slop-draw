@@ -22,13 +22,14 @@ type Props = {
 }
 
 function clientToSvg(svg: SVGSVGElement, clientX: number, clientY: number): { x: number; y: number } {
-  const pt = svg.createSVGPoint()
-  pt.x = clientX
-  pt.y = clientY
-  const ctm = svg.getScreenCTM()
-  if (!ctm) return { x: clientX, y: clientY }
-  const transformed = pt.matrixTransform(ctm.inverse())
-  return { x: transformed.x, y: transformed.y }
+  const rect = svg.getBoundingClientRect()
+  const vb = svg.viewBox.baseVal
+  if (rect.width === 0 || rect.height === 0 || vb.width === 0 || vb.height === 0) {
+    return { x: clientX, y: clientY }
+  }
+  const x = vb.x + ((clientX - rect.left) / rect.width) * vb.width
+  const y = vb.y + ((clientY - rect.top) / rect.height) * vb.height
+  return { x, y }
 }
 
 export function useNodeDrag({ graphState }: Props): UseNodeDragResult {
