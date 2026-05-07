@@ -20,7 +20,7 @@ export function Edge({ edge, sourceNode, targetNode, routing }: Props) {
       <path
         d={d}
         fill="none"
-        stroke="#9333ea"
+        stroke="var(--line-color)"
         strokeWidth={2}
         markerEnd="url(#arrow)"
       />

@@ -47,7 +47,7 @@ export function DiagramCanvas({
           refY="3.5"
           orient="auto"
         >
-          <polygon points="0 0, 10 3.5, 0 7" fill="#9333ea" />
+          <polygon points="0 0, 10 3.5, 0 7" fill="var(--line-color)" />
         </marker>
       </defs>
       <g className="edges">
