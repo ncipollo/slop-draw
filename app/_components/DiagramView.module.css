@@ -114,3 +114,114 @@
   padding: 8px;
   font-family: var(--font-geist-mono, monospace);
 }
+
+/* Editable canvas */
+
+.node {
+  cursor: pointer;
+}
+
+.node > rect,
+.node > polygon,
+.node > ellipse {
+  fill: #fff;
+  stroke: #374151;
+  stroke-width: 1.5px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .node > rect,
+  .node > polygon,
+  .node > ellipse {
+    fill: #1f2937;
+    stroke: #9ca3af;
+  }
+}
+
+.nodeSelected > rect,
+.nodeSelected > polygon,
+.nodeSelected > ellipse {
+  stroke: #3b82f6;
+  stroke-width: 2.5px;
+}
+
+.nodeSelected {
+  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.7));
+}
+
+.nodeLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 14px;
+  text-align: center;
+  user-select: none;
+  pointer-events: none;
+  overflow: hidden;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.nodeLabelEditing {
+  pointer-events: auto;
+}
+
+.nodeLabelEdit {
+  outline: none;
+  width: 100%;
+  text-align: center;
+  cursor: text;
+  min-width: 10px;
+}
+
+.routingToggle {
+  display: flex;
+  gap: 2px;
+}
+
+.routingButton {
+  padding: 4px 8px;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.routingButton:hover {
+  background: #f3f4f6;
+}
+
+.routingButtonActive {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  .routingButton:hover {
+    background: #374151;
+  }
+  .routingButtonActive {
+    background: #1e3a5f;
+    border-color: #3b82f6;
+  }
+}
+
+.diagramError {
+  color: #ef4444;
+  font-size: 12px;
+  padding: 8px;
+  font-family: var(--font-geist-mono, monospace);
+}
+
+.emptyState {
+  color: #9ca3af;
+  font-size: 14px;
+  padding: 32px;
+  text-align: center;
+}

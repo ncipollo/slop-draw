@@ -3,27 +3,33 @@ import { getMermaid, nextRenderId } from './mermaidLoader'
 
 type Props = {
   source: string
-  containerRef: React.RefObject<HTMLDivElement | null>
+  onRendered: (svgString: string) => void
+  onError: (message: string) => void
 }
 
-export function useMermaidRender({ source, containerRef }: Props): void {
+export function useMermaidRender({ source, onRendered, onError }: Props): void {
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
     let cancelled = false
     const id = nextRenderId()
+    const scratch = document.createElement('div')
+    document.body.appendChild(scratch)
+
     getMermaid()
-      .then((mermaid) => mermaid.render(id, source))
+      .then((mermaid) => mermaid.render(id, source, scratch))
       .then(({ svg }) => {
         if (cancelled) return
-        container.innerHTML = svg
+        onRendered(svg)
       })
       .catch((err: unknown) => {
         if (cancelled) return
-        container.innerHTML = `<pre class="mermaid-error">${String(err)}</pre>`
+        onError(String(err))
       })
+      .finally(() => {
+        if (scratch.parentNode) scratch.parentNode.removeChild(scratch)
+      })
+
     return () => {
       cancelled = true
     }
-  }, [source, containerRef])
+  }, [source, onRendered, onError])
 }

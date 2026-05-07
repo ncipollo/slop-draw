@@ -29,7 +29,7 @@ export function usePan(): UsePanResult {
   function onMouseDown(e: React.MouseEvent<HTMLDivElement>) {
     didPanRef.current = false
     const target = e.target as HTMLElement
-    if (target.closest('g.node')) return
+    if (target.closest('g.node') ?? target.closest('[data-node-id]')) return
     if (!scrollerRef.current) return
     panState.current = {
       startX: e.clientX,

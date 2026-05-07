@@ -41,3 +41,5 @@ yarn-error.log*
 # Tauri
 src-tauri/target/
 src-tauri/gen/
+
+.overmind

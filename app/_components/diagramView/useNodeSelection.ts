@@ -1,44 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 type Props = {
-  containerRef: React.RefObject<HTMLDivElement | null>
-  source: string
   didPanRef: React.RefObject<boolean>
 }
 
 type UseNodeSelectionResult = {
   selectedNodeId: string | null
-  onDiagramClick: (e: React.MouseEvent<HTMLDivElement>) => void
+  onNodeClick: (e: React.MouseEvent<SVGGElement>, id: string) => void
+  clearSelection: () => void
 }
 
-export function useNodeSelection({
-  containerRef,
-  source,
-  didPanRef,
-}: Props): UseNodeSelectionResult {
+export function useNodeSelection({ didPanRef }: Props): UseNodeSelectionResult {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-    container.querySelectorAll('g.node').forEach((el) => {
-      el.classList.toggle('selected', el.id === selectedNodeId)
-    })
-  }, [selectedNodeId, source, containerRef])
-
-  function onDiagramClick(e: React.MouseEvent<HTMLDivElement>) {
+  function onNodeClick(_e: React.MouseEvent<SVGGElement>, id: string) {
     if (didPanRef.current) {
       didPanRef.current = false
       return
     }
-    const node = (e.target as HTMLElement).closest('g.node')
-    if (node) {
-      const newId = node.id === selectedNodeId ? null : node.id
-      setSelectedNodeId(newId)
-    } else {
-      setSelectedNodeId(null)
-    }
+    setSelectedNodeId((prev) => (prev === id ? null : id))
   }
 
-  return { selectedNodeId, onDiagramClick }
+  function clearSelection() {
+    setSelectedNodeId(null)
+  }
+
+  return { selectedNodeId, onNodeClick, clearSelection }
 }

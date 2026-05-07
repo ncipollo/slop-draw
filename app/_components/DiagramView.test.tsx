@@ -30,7 +30,7 @@ describe('DiagramView', () => {
     expect((textarea as HTMLTextAreaElement).value).toContain('flowchart')
   })
 
-  it('clicking Render updates the committed source', async () => {
+  it('clicking Render calls mermaid.render with the new source', async () => {
     const mermaid = (await import('mermaid')).default
     const user = userEvent.setup()
     render(<DiagramView />)
@@ -46,6 +46,7 @@ describe('DiagramView', () => {
       expect(mermaid.render).toHaveBeenCalledWith(
         expect.any(String),
         'flowchart LR\n  A --> B',
+        expect.any(HTMLDivElement),
       ),
     )
   })

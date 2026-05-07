@@ -13,26 +13,25 @@ vi.mock('./mermaidLoader', () => {
 import { getMermaid, nextRenderId } from './mermaidLoader'
 import { useMermaidRender } from './useMermaidRender'
 
-function makeContainerRef(container: HTMLDivElement) {
-  return { current: container } as React.RefObject<HTMLDivElement | null>
-}
-
 describe('useMermaidRender', () => {
+  const onRendered = vi.fn()
+  const onError = vi.fn()
+
   beforeEach(() => {
+    onRendered.mockReset()
+    onError.mockReset()
     vi.mocked(getMermaid).mockResolvedValue({
       render: vi.fn().mockResolvedValue({ svg: '<svg id="mock"/>' }),
       initialize: vi.fn(),
     } as unknown as typeof import('mermaid')['default'])
   })
 
-  it('renders mermaid into the container on mount', async () => {
-    const container = document.createElement('div')
-    const containerRef = makeContainerRef(container)
-    renderHook(() => useMermaidRender({ source: 'flowchart TD\nA-->B', containerRef }))
-    await vi.waitFor(() => expect(container.innerHTML).toContain('id="mock"'))
+  it('calls onRendered with the svg string on mount', async () => {
+    renderHook(() => useMermaidRender({ source: 'flowchart TD\nA-->B', onRendered, onError }))
+    await vi.waitFor(() => expect(onRendered).toHaveBeenCalledWith('<svg id="mock"/>'))
   })
 
-  it('does not write to the container when cancelled before render completes', async () => {
+  it('does not call onRendered when cancelled before render completes', async () => {
     let resolveRender!: (value: { svg: string }) => void
     const renderPromise = new Promise<{ svg: string }>((res) => { resolveRender = res })
     vi.mocked(getMermaid).mockResolvedValue({
@@ -40,22 +39,18 @@ describe('useMermaidRender', () => {
       initialize: vi.fn(),
     } as unknown as typeof import('mermaid')['default'])
 
-    const container = document.createElement('div')
-    const containerRef = makeContainerRef(container)
     const { unmount } = renderHook(() =>
-      useMermaidRender({ source: 'A', containerRef }),
+      useMermaidRender({ source: 'A', onRendered, onError }),
     )
     unmount()
     resolveRender({ svg: '<svg id="should-not-appear"/>' })
     await renderPromise
-    expect(container.innerHTML).toBe('')
+    expect(onRendered).not.toHaveBeenCalled()
   })
 
   it('calls nextRenderId for each render', () => {
-    const container = document.createElement('div')
-    const containerRef = makeContainerRef(container)
     vi.mocked(nextRenderId).mockReturnValue('mmd-test')
-    renderHook(() => useMermaidRender({ source: 'A-->B', containerRef }))
+    renderHook(() => useMermaidRender({ source: 'A-->B', onRendered, onError }))
     expect(nextRenderId).toHaveBeenCalled()
   })
 })
