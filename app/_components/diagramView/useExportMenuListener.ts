@@ -11,8 +11,7 @@ export function useExportMenuListener({ containerRef }: Props): void {
     import('@tauri-apps/api/event')
       .then(({ listen }) =>
         listen('menu-export', () => {
-          const svg = containerRef.current?.querySelector('svg') ?? null
-          exportDiagram(svg as SVGSVGElement | null)
+          exportDiagram(containerRef.current)
         }),
       )
       .then((fn) => {

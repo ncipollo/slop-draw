@@ -42,7 +42,7 @@ describe('useExportMenuListener', () => {
     await vi.waitFor(() => expect(capturedHandler).toBeDefined())
 
     capturedHandler()
-    expect(exportDiagram).toHaveBeenCalledWith(svg)
+    expect(exportDiagram).toHaveBeenCalledWith(container)
   })
 
   it('calls unlisten on unmount', async () => {
