@@ -5,24 +5,27 @@ const PNG_SCALE = 2
 export async function captureElementAsPng(element: HTMLElement): Promise<Uint8Array> {
   const svg = element.querySelector('svg') as SVGSVGElement | null
   if (!svg) return new Uint8Array()
-  const { width, height } = getSvgSize(svg)
-  const img = await loadSvgAsImage(svgToString(svg))
+  const svgString = svgToString(svg)
+  const { width, height } = parseSvgDimensions(svgString)
+  const img = await loadSvgAsImage(svgString)
   return renderToPng(img, width, height)
 }
 
-function getSvgSize(svg: SVGSVGElement): { width: number; height: number } {
-  const w = parseFloat(svg.getAttribute('width') ?? '')
-  const h = parseFloat(svg.getAttribute('height') ?? '')
+// Reads width/height from the root <svg> element's attributes in the serialized string.
+// svgToString always sets explicit pixel width/height, so this is the authoritative size.
+function parseSvgDimensions(svgString: string): { width: number; height: number } {
+  const wMatch = svgString.match(/<svg[^>]*\swidth="([\d.]+)"/)
+  const hMatch = svgString.match(/<svg[^>]*\sheight="([\d.]+)"/)
+  const w = wMatch ? parseFloat(wMatch[1]) : 0
+  const h = hMatch ? parseFloat(hMatch[1]) : 0
   if (w > 0 && h > 0) return { width: w, height: h }
 
-  const vb = svg.getAttribute('viewBox')
-  if (vb) {
-    const parts = vb.trim().split(/\s+|,/).map(Number)
+  const vbMatch = svgString.match(/viewBox="([-\d.\s]+)"/)
+  if (vbMatch) {
+    const parts = vbMatch[1].trim().split(/\s+/).map(Number)
     if (parts[2] > 0 && parts[3] > 0) return { width: parts[2], height: parts[3] }
   }
-
-  const rect = svg.getBoundingClientRect()
-  return { width: rect.width || 400, height: rect.height || 300 }
+  return { width: 400, height: 300 }
 }
 
 function loadSvgAsImage(svgString: string): Promise<HTMLImageElement> {
