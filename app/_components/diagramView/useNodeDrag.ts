@@ -2,15 +2,17 @@ import { useRef, useState } from 'react'
 import type { UseGraphStateResult } from './useGraphState'
 
 type DragState = {
-  nodeId: string
+  id: string
+  kind: 'node' | 'actor'
   offsetX: number
   offsetY: number
   pointerId: number
 }
 
 type UseNodeDragResult = {
-  draggingNodeId: string | null
+  draggingId: string | null
   onNodePointerDown: (e: React.PointerEvent<SVGGElement>, id: string) => void
+  onActorPointerDown: (e: React.PointerEvent<SVGGElement>, id: string) => void
   onSvgPointerMove: (e: React.PointerEvent<SVGSVGElement>) => void
   onSvgPointerUp: (e: React.PointerEvent<SVGSVGElement>) => void
 }
@@ -31,22 +33,46 @@ function clientToSvg(svg: SVGSVGElement, clientX: number, clientY: number): { x:
 
 export function useNodeDrag({ graphState }: Props): UseNodeDragResult {
   const dragState = useRef<DragState | null>(null)
-  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   function onNodePointerDown(e: React.PointerEvent<SVGGElement>, id: string) {
     e.stopPropagation()
+    const g = graphState.graph
+    if (!g || g.kind !== 'flowchart') return
     const svg = (e.currentTarget as SVGGElement).ownerSVGElement
     if (!svg) return
-    const node = graphState.graph?.nodes.find((n) => n.id === id)
+    const node = g.nodes.find((n) => n.id === id)
     if (!node) return
     const svgPt = clientToSvg(svg, e.clientX, e.clientY)
     dragState.current = {
-      nodeId: id,
+      id,
+      kind: 'node',
       offsetX: svgPt.x - node.x,
       offsetY: svgPt.y - node.y,
       pointerId: e.pointerId,
     }
-    setDraggingNodeId(id)
+    setDraggingId(id)
+    e.currentTarget.setPointerCapture(e.pointerId)
+    e.preventDefault()
+  }
+
+  function onActorPointerDown(e: React.PointerEvent<SVGGElement>, id: string) {
+    e.stopPropagation()
+    const g = graphState.graph
+    if (!g || g.kind !== 'sequence') return
+    const svg = (e.currentTarget as SVGGElement).ownerSVGElement
+    if (!svg) return
+    const actor = g.actors.find((a) => a.id === id)
+    if (!actor) return
+    const svgPt = clientToSvg(svg, e.clientX, e.clientY)
+    dragState.current = {
+      id,
+      kind: 'actor',
+      offsetX: svgPt.x - actor.x,
+      offsetY: 0,
+      pointerId: e.pointerId,
+    }
+    setDraggingId(id)
     e.currentTarget.setPointerCapture(e.pointerId)
     e.preventDefault()
   }
@@ -55,16 +81,24 @@ export function useNodeDrag({ graphState }: Props): UseNodeDragResult {
     if (!dragState.current) return
     const svg = e.currentTarget
     const svgPt = clientToSvg(svg, e.clientX, e.clientY)
-    graphState.updateNode(dragState.current.nodeId, {
-      x: svgPt.x - dragState.current.offsetX,
-      y: svgPt.y - dragState.current.offsetY,
-    })
+
+    if (dragState.current.kind === 'node') {
+      graphState.updateNode(dragState.current.id, {
+        x: svgPt.x - dragState.current.offsetX,
+        y: svgPt.y - dragState.current.offsetY,
+      })
+    } else {
+      // Horizontal-only drag for actors.
+      graphState.updateActor(dragState.current.id, {
+        x: svgPt.x - dragState.current.offsetX,
+      })
+    }
   }
 
   function onSvgPointerUp() {
     dragState.current = null
-    setDraggingNodeId(null)
+    setDraggingId(null)
   }
 
-  return { draggingNodeId, onNodePointerDown, onSvgPointerMove, onSvgPointerUp }
+  return { draggingId, onNodePointerDown, onActorPointerDown, onSvgPointerMove, onSvgPointerUp }
 }

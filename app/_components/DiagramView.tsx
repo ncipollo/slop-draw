@@ -11,6 +11,39 @@ import { useGraphState } from './diagramView/useGraphState'
 import { useNodeDrag } from './diagramView/useNodeDrag'
 import { useLabelEdit } from './diagramView/useLabelEdit'
 import { DiagramCanvas } from './diagramView/DiagramCanvas'
+import type { DiagramGraph, RoutingMode } from './diagramView/graph'
+
+type RoutingToggleProps = {
+  graph: DiagramGraph
+  onSetRouting: (mode: RoutingMode) => void
+}
+
+function RoutingToggle({ graph, onSetRouting }: RoutingToggleProps) {
+  const isSequence = graph.kind === 'sequence'
+  const activeRouting = graph.kind === 'flowchart' ? graph.routing : null
+  const disabledTitle = 'Routing only applies to flowchart edges'
+
+  return (
+    <div className={styles.routingToggle}>
+      <button
+        className={`${styles.routingButton}${activeRouting === 'orthogonal' ? ` ${styles.routingButtonActive}` : ''}`}
+        onClick={() => onSetRouting('orthogonal')}
+        disabled={isSequence}
+        title={isSequence ? disabledTitle : 'Orthogonal routing'}
+      >
+        ⌐
+      </button>
+      <button
+        className={`${styles.routingButton}${activeRouting === 'bezier' ? ` ${styles.routingButtonActive}` : ''}`}
+        onClick={() => onSetRouting('bezier')}
+        disabled={isSequence}
+        title={isSequence ? disabledTitle : 'Bezier routing'}
+      >
+        ∿
+      </button>
+    </div>
+  )
+}
 
 export function DiagramView() {
   const [draftSource, setDraftSource] = useState(SAMPLE_SOURCE)
@@ -37,10 +70,17 @@ export function DiagramView() {
 
   const { scrollerRef, isPanning, didPanRef, handlers: panHandlers } = usePan()
   const { selectedNodeId, onNodeClick, clearSelection } = useNodeSelection({ didPanRef })
-  const { onNodePointerDown, onSvgPointerMove, onSvgPointerUp } = useNodeDrag({ graphState })
-  const { editingNodeId, onNodeDoubleClick, onLabelCommit, onLabelCancel } = useLabelEdit({
-    graphState,
-  })
+  const { onNodePointerDown, onActorPointerDown, onSvgPointerMove, onSvgPointerUp } = useNodeDrag({ graphState })
+  const {
+    editingNodeId,
+    editingActorId,
+    editingMessageId,
+    onNodeDoubleClick,
+    onActorDoubleClick,
+    onMessageLabelDoubleClick,
+    onLabelCommit,
+    onLabelCancel,
+  } = useLabelEdit({ graphState })
 
   useExportMenuListener({ containerRef: svgContainerRef })
 
@@ -61,7 +101,7 @@ export function DiagramView() {
 
   function handleCanvasClick(e: React.MouseEvent<HTMLDivElement>) {
     const target = e.target as Element
-    if (!target.closest('[data-node-id]')) {
+    if (!target.closest('[data-node-id]') && !target.closest('[data-actor-id]')) {
       clearSelection()
     }
   }
@@ -82,22 +122,7 @@ export function DiagramView() {
             Render
           </button>
           {graphState.graph && (
-            <div className={styles.routingToggle}>
-              <button
-                className={`${styles.routingButton}${graphState.graph.routing === 'orthogonal' ? ` ${styles.routingButtonActive}` : ''}`}
-                onClick={() => graphState.setRouting('orthogonal')}
-                title="Orthogonal routing"
-              >
-                ⌐
-              </button>
-              <button
-                className={`${styles.routingButton}${graphState.graph.routing === 'bezier' ? ` ${styles.routingButtonActive}` : ''}`}
-                onClick={() => graphState.setRouting('bezier')}
-                title="Bezier routing"
-              >
-                ∿
-              </button>
-            </div>
+            <RoutingToggle graph={graphState.graph} onSetRouting={graphState.setRouting} />
           )}
           {selectedNodeId && (
             <span className={styles.selectedLabel}>Selected: {selectedNodeId}</span>
@@ -123,9 +148,14 @@ export function DiagramView() {
               graph={graphState.graph}
               selectedNodeId={selectedNodeId}
               editingNodeId={editingNodeId}
+              editingActorId={editingActorId}
+              editingMessageId={editingMessageId}
               onNodePointerDown={onNodePointerDown}
+              onActorPointerDown={onActorPointerDown}
               onNodeClick={onNodeClick}
               onNodeDoubleClick={onNodeDoubleClick}
+              onActorDoubleClick={onActorDoubleClick}
+              onMessageLabelDoubleClick={onMessageLabelDoubleClick}
               onLabelCommit={onLabelCommit}
               onLabelCancel={onLabelCancel}
               onSvgPointerMove={onSvgPointerMove}

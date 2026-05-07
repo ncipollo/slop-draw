@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { bootstrapGraph } from './bootstrap'
+import type { FlowchartGraph } from './graph'
 
 // Mermaid v11 realistic fixture: lowercased <foreignobject>, actual ID format,
 // polygon with its own transform, stadium shape using <path>, edge labels.
@@ -63,22 +64,28 @@ const MERMAID_V11_FIXTURE = `<svg id="mermaid-1" viewBox="-8 -8 300 320" xmlns="
 </svg>`
 
 describe('bootstrapGraph — Mermaid v11 realistic fixture', () => {
+  const graph = () => bootstrapGraph(MERMAID_V11_FIXTURE) as FlowchartGraph
+
+  it('returns kind=flowchart', () => {
+    expect(bootstrapGraph(MERMAID_V11_FIXTURE).kind).toBe('flowchart')
+  })
+
   it('parses node count', () => {
-    expect(bootstrapGraph(MERMAID_V11_FIXTURE).nodes).toHaveLength(3)
+    expect(graph().nodes).toHaveLength(3)
   })
 
   it('extracts logical node ids from prefixed SVG ids', () => {
-    const ids = bootstrapGraph(MERMAID_V11_FIXTURE).nodes.map((n) => n.id).sort()
+    const ids = graph().nodes.map((n) => n.id).sort()
     expect(ids).toEqual(['A', 'B', 'C'])
   })
 
   it('detects stadium shape (path-only node)', () => {
-    const a = bootstrapGraph(MERMAID_V11_FIXTURE).nodes.find((n) => n.id === 'A')!
+    const a = graph().nodes.find((n) => n.id === 'A')!
     expect(a.shape).toBe('stadium')
   })
 
   it('derives stadium bbox from label group + foreignObject', () => {
-    const a = bootstrapGraph(MERMAID_V11_FIXTURE).nodes.find((n) => n.id === 'A')!
+    const a = graph().nodes.find((n) => n.id === 'A')!
     // label group translate(-25,-10) + node translate(150,30)
     expect(a.x).toBeCloseTo(125)  // 150 + (-25)
     expect(a.y).toBeCloseTo(20)   // 30  + (-10)
@@ -87,12 +94,12 @@ describe('bootstrapGraph — Mermaid v11 realistic fixture', () => {
   })
 
   it('detects diamond shape', () => {
-    const b = bootstrapGraph(MERMAID_V11_FIXTURE).nodes.find((n) => n.id === 'B')!
+    const b = graph().nodes.find((n) => n.id === 'B')!
     expect(b.shape).toBe('diamond')
   })
 
   it('applies polygon transform when computing diamond bbox', () => {
-    const b = bootstrapGraph(MERMAID_V11_FIXTURE).nodes.find((n) => n.id === 'B')!
+    const b = graph().nodes.find((n) => n.id === 'B')!
     // polygon points(0,-60,120,60 after translate(-60,60)): minX=-60,minY=-60,maxX=60,maxY=60
     expect(b.x).toBeCloseTo(90)   // 150 + (-60)
     expect(b.y).toBeCloseTo(90)   // 150 + (-60)
@@ -101,7 +108,7 @@ describe('bootstrapGraph — Mermaid v11 realistic fixture', () => {
   })
 
   it('skips empty placeholder rect and uses real rect for standard node', () => {
-    const c = bootstrapGraph(MERMAID_V11_FIXTURE).nodes.find((n) => n.id === 'C')!
+    const c = graph().nodes.find((n) => n.id === 'C')!
     expect(c.x).toBeCloseTo(100)  // 150 + (-50)
     expect(c.y).toBeCloseTo(260)  // 280 + (-20)
     expect(c.width).toBeCloseTo(100)
@@ -109,17 +116,17 @@ describe('bootstrapGraph — Mermaid v11 realistic fixture', () => {
   })
 
   it('parses edge count', () => {
-    expect(bootstrapGraph(MERMAID_V11_FIXTURE).edges).toHaveLength(2)
+    expect(graph().edges).toHaveLength(2)
   })
 
   it('attaches edge label when label group has text', () => {
-    const edges = bootstrapGraph(MERMAID_V11_FIXTURE).edges
+    const edges = graph().edges
     const ab = edges.find((e) => e.source === 'A' && e.target === 'B')!
     expect(ab.label).toBe('Yes')
   })
 
   it('omits edge label when label group is empty', () => {
-    const edges = bootstrapGraph(MERMAID_V11_FIXTURE).edges
+    const edges = graph().edges
     const bc = edges.find((e) => e.source === 'B' && e.target === 'C')!
     expect(bc.label).toBeUndefined()
   })
@@ -158,22 +165,28 @@ const FIXTURE_SVG = `<svg id="mmd-1" viewBox="-8 -8 300 220" xmlns="http://www.w
 </svg>`
 
 describe('bootstrapGraph — legacy XML fixture', () => {
+  const graph = () => bootstrapGraph(FIXTURE_SVG) as FlowchartGraph
+
+  it('returns kind=flowchart', () => {
+    expect(bootstrapGraph(FIXTURE_SVG).kind).toBe('flowchart')
+  })
+
   it('parses node count', () => {
-    expect(bootstrapGraph(FIXTURE_SVG).nodes).toHaveLength(2)
+    expect(graph().nodes).toHaveLength(2)
   })
 
   it('extracts logical node ids (strips flowchart- prefix and counter suffix)', () => {
-    const ids = bootstrapGraph(FIXTURE_SVG).nodes.map((n) => n.id).sort()
+    const ids = graph().nodes.map((n) => n.id).sort()
     expect(ids).toEqual(['A', 'B'])
   })
 
   it('extracts node labels', () => {
-    const labels = bootstrapGraph(FIXTURE_SVG).nodes.map((n) => n.label).sort()
+    const labels = graph().nodes.map((n) => n.label).sort()
     expect(labels).toEqual(['End', 'Start'])
   })
 
   it('extracts node bounding box from translate + shape offsets', () => {
-    const a = bootstrapGraph(FIXTURE_SVG).nodes.find((n) => n.id === 'A')!
+    const a = graph().nodes.find((n) => n.id === 'A')!
     expect(a.x).toBeCloseTo(35)   // 75 + (-40)
     expect(a.y).toBeCloseTo(30)   // 50 + (-20)
     expect(a.width).toBeCloseTo(80)
@@ -181,24 +194,23 @@ describe('bootstrapGraph — legacy XML fixture', () => {
   })
 
   it('parses edge count', () => {
-    expect(bootstrapGraph(FIXTURE_SVG).edges).toHaveLength(1)
+    expect(graph().edges).toHaveLength(1)
   })
 
   it('parses edge source and target', () => {
-    const graph = bootstrapGraph(FIXTURE_SVG)
-    expect(graph.edges[0].source).toBe('A')
-    expect(graph.edges[0].target).toBe('B')
+    expect(graph().edges[0].source).toBe('A')
+    expect(graph().edges[0].target).toBe('B')
   })
 
   it('does not duplicate edges from path + label both carrying data-id', () => {
-    expect(bootstrapGraph(FIXTURE_SVG).edges).toHaveLength(1)
+    expect(graph().edges).toHaveLength(1)
   })
 
   it('reads viewBox from the SVG root', () => {
-    expect(bootstrapGraph(FIXTURE_SVG).viewBox).toBe('-8 -8 300 220')
+    expect(graph().viewBox).toBe('-8 -8 300 220')
   })
 
   it('sets default routing to orthogonal', () => {
-    expect(bootstrapGraph(FIXTURE_SVG).routing).toBe('orthogonal')
+    expect(graph().routing).toBe('orthogonal')
   })
 })

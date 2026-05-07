@@ -3,14 +3,20 @@
 import type { DiagramGraph } from './graph'
 import { Node } from './Node'
 import { Edge } from './Edge'
+import { SequenceCanvas } from './SequenceCanvas'
 
 type Props = {
   graph: DiagramGraph
   selectedNodeId: string | null
   editingNodeId: string | null
+  editingActorId: string | null
+  editingMessageId: string | null
   onNodePointerDown: (e: React.PointerEvent<SVGGElement>, id: string) => void
+  onActorPointerDown: (e: React.PointerEvent<SVGGElement>, id: string) => void
   onNodeClick: (e: React.MouseEvent<SVGGElement>, id: string) => void
   onNodeDoubleClick: (id: string) => void
+  onActorDoubleClick: (id: string) => void
+  onMessageLabelDoubleClick: (id: string) => void
   onLabelCommit: (id: string, label: string) => void
   onLabelCancel: () => void
   onSvgPointerMove: (e: React.PointerEvent<SVGSVGElement>) => void
@@ -21,14 +27,38 @@ export function DiagramCanvas({
   graph,
   selectedNodeId,
   editingNodeId,
+  editingActorId,
+  editingMessageId,
   onNodePointerDown,
+  onActorPointerDown,
   onNodeClick,
   onNodeDoubleClick,
+  onActorDoubleClick,
+  onMessageLabelDoubleClick,
   onLabelCommit,
   onLabelCancel,
   onSvgPointerMove,
   onSvgPointerUp,
 }: Props) {
+  if (graph.kind === 'sequence') {
+    return (
+      <SequenceCanvas
+        graph={graph}
+        selectedActorId={selectedNodeId}
+        editingActorId={editingActorId}
+        editingMessageId={editingMessageId}
+        onActorPointerDown={onActorPointerDown}
+        onActorClick={onNodeClick}
+        onActorDoubleClick={onActorDoubleClick}
+        onMessageLabelDoubleClick={onMessageLabelDoubleClick}
+        onLabelCommit={onLabelCommit}
+        onLabelCancel={onLabelCancel}
+        onSvgPointerMove={onSvgPointerMove}
+        onSvgPointerUp={onSvgPointerUp}
+      />
+    )
+  }
+
   const nodeIndex = new Map(graph.nodes.map((n) => [n.id, n]))
 
   return (

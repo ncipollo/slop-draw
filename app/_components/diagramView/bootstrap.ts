@@ -1,6 +1,40 @@
-import type { DiagramEdge, DiagramGraph, DiagramNode, NodeShape } from './graph'
+import type {
+  DiagramEdge,
+  DiagramGraph,
+  DiagramNode,
+  FlowchartGraph,
+  NodeShape,
+  SequenceActor,
+  SequenceArrowKind,
+  SequenceGraph,
+  SequenceMessage,
+} from './graph'
 
-function detectShape(nodeEl: Element): NodeShape {
+// ─── Shared helpers ────────────────────────────────────────────────────────
+
+function readViewBox(svgEl: Element): string {
+  return svgEl.getAttribute('viewBox') ?? svgEl.getAttribute('viewbox') ?? '0 0 800 600'
+}
+
+function extractTextContent(el: Element): string {
+  const fo = el.querySelector('foreignObject')
+  if (fo) return (fo.textContent ?? '').trim()
+  const span = el.querySelector('span')
+  if (span) return (span.textContent ?? '').trim()
+  return (el.textContent ?? '').trim()
+}
+
+function parseSvg(svgString: string): Element | null {
+  const container = document.createElement('div')
+  container.innerHTML = svgString
+  return container.querySelector('svg')
+}
+
+// ─── Flowchart parser ───────────────────────────────────────────────────────
+
+type NodeShape_ = NodeShape
+
+function detectShape(nodeEl: Element): NodeShape_ {
   if (nodeEl.querySelector('polygon')) return 'diamond'
   if (nodeEl.querySelector('ellipse')) return 'ellipse'
   const rect = nodeEl.querySelector('rect')
@@ -132,23 +166,7 @@ function parseEdgeDataId(dataId: string, nodeIds: Set<string>): { source: string
   return null
 }
 
-function readViewBox(svgEl: Element): string {
-  return svgEl.getAttribute('viewBox') ?? svgEl.getAttribute('viewbox') ?? '0 0 800 600'
-}
-
-export function bootstrapGraph(svgString: string): DiagramGraph {
-  // Parse by setting innerHTML on a throwaway div — the same HTML parser that
-  // Mermaid v11 uses when it serializes via element.innerHTML, so lowercased
-  // <foreignobject> and unprefixed nested HTML round-trip cleanly.
-  const container = document.createElement('div')
-  container.innerHTML = svgString
-  const svgEl = container.querySelector('svg')
-
-  if (!svgEl) {
-    console.warn('[bootstrap] no <svg> found in rendered output')
-    return { nodes: [], edges: [], routing: 'orthogonal', viewBox: '0 0 800 600' }
-  }
-
+function bootstrapFlowchart(svgEl: Element): FlowchartGraph {
   const viewBox = readViewBox(svgEl)
 
   const nodes: DiagramNode[] = []
@@ -193,5 +211,207 @@ export function bootstrapGraph(svgString: string): DiagramGraph {
     edges.push({ id: dataId, source: parsed.source, target: parsed.target, label })
   }
 
-  return { nodes, edges, routing: 'orthogonal', viewBox }
+  return { kind: 'flowchart', nodes, edges, routing: 'orthogonal', viewBox }
+}
+
+// ─── Sequence parser ────────────────────────────────────────────────────────
+
+type ArrowBase = 'open' | 'cross' | 'solid'
+
+function detectArrowBase(fragment: string, original: string): ArrowBase {
+  if (fragment.includes('arrowhead')) return 'open'
+  if (fragment.includes('cross')) return 'cross'
+  const isKnown =
+    fragment.includes('filled') || fragment.includes('stick') || fragment.includes('head') || fragment === ''
+  if (!isKnown) {
+    console.warn('[bootstrap] unrecognized sequence arrow marker:', original, '— defaulting to solid')
+  }
+  return 'solid'
+}
+
+function parseMarkerKind(cls: string, markerEnd: string): SequenceArrowKind {
+  const isDashed = cls.includes('messageLine1')
+  const fragment = (markerEnd.split('#').pop() ?? '').toLowerCase()
+  const base = detectArrowBase(fragment, markerEnd)
+  if (base === 'open') return isDashed ? 'dashedOpen' : 'solidOpen'
+  if (base === 'cross') return isDashed ? 'dashedCross' : 'cross'
+  return isDashed ? 'dashed' : 'solid'
+}
+
+type TextNode = { x: number; y: number; text: string }
+
+function collectMessageTexts(svgEl: Element): TextNode[] {
+  const result: TextNode[] = []
+  for (const el of svgEl.querySelectorAll('text.messageText')) {
+    const x = parseFloat(el.getAttribute('x') ?? '0')
+    const y = parseFloat(el.getAttribute('y') ?? '0')
+    const text = (el.textContent ?? '').trim()
+    if (text) result.push({ x, y, text })
+  }
+  return result
+}
+
+function associateLabel(
+  x1: number,
+  x2: number,
+  msgY: number,
+  isSelf: boolean,
+  selfLoopHeight: number,
+  texts: TextNode[],
+): string {
+  const minX = Math.min(x1, x2)
+  const maxX = Math.max(x1, x2)
+
+  let best: TextNode | null = null
+  let bestDist = Infinity
+
+  for (const t of texts) {
+    const dy = Math.abs(t.y - msgY)
+    if (dy > 30) continue
+    const inBand = isSelf
+      ? t.y >= msgY - 5 && t.y <= msgY + selfLoopHeight + 5
+      : t.x >= minX - 10 && t.x <= maxX + 10
+    if (!inBand) continue
+    if (dy < bestDist) {
+      bestDist = dy
+      best = t
+    }
+  }
+
+  return best?.text ?? ''
+}
+
+function extractActorLabel(actorGroup: Element | null, fallback: string): string {
+  if (!actorGroup) return fallback
+  const fo = actorGroup.querySelector('foreignObject')
+  if (fo) return (fo.textContent ?? '').trim() || fallback
+  const text = actorGroup.querySelector('text.actor')
+  if (text) return (text.textContent ?? '').trim() || fallback
+  return extractTextContent(actorGroup) || fallback
+}
+
+type ActorBox = { x: number; topY: number; width: number; height: number }
+
+function parseActorBox(rect: Element): ActorBox {
+  return {
+    x: parseFloat(rect.getAttribute('x') ?? '0'),
+    topY: parseFloat(rect.getAttribute('y') ?? '0'),
+    width: parseFloat(rect.getAttribute('width') ?? '60'),
+    height: parseFloat(rect.getAttribute('height') ?? '40'),
+  }
+}
+
+function readActorBottomY(actorGroup: Element | null, fallback: number): number {
+  const rects = actorGroup?.querySelectorAll<Element>('rect.actor')
+  const bottomRect = rects && rects.length > 1 ? rects[1] : null
+  if (!bottomRect) return fallback
+  return parseFloat(bottomRect.getAttribute('y') ?? String(fallback))
+}
+
+function extractSequenceActors(svgEl: Element): SequenceActor[] {
+  const actors: SequenceActor[] = []
+
+  for (const lifeline of svgEl.querySelectorAll<Element>('line[data-et="life-line"]')) {
+    const id = lifeline.getAttribute('data-id') ?? ''
+    if (!id) continue
+
+    const lifelineTopY = parseFloat(lifeline.getAttribute('y1') ?? '0')
+    const lifelineBottomY = parseFloat(lifeline.getAttribute('y2') ?? '0')
+    const lifelineCx = parseFloat(lifeline.getAttribute('x1') ?? '0')
+
+    const actorGroup = lifeline.parentElement
+    const topRect = actorGroup?.querySelector<Element>('rect.actor') ?? null
+    const box: ActorBox = topRect
+      ? parseActorBox(topRect)
+      : { x: lifelineCx - 30, topY: lifelineTopY - 40, width: 60, height: 40 }
+
+    actors.push({
+      id,
+      label: extractActorLabel(actorGroup ?? null, id),
+      x: box.x,
+      topY: box.topY,
+      bottomY: readActorBottomY(actorGroup ?? null, lifelineBottomY),
+      width: box.width,
+      height: box.height,
+      lifelineTopY,
+      lifelineBottomY,
+    })
+  }
+
+  return actors
+}
+
+function parseSelfMessage(el: Element): { msgY: number; selfLoopHeight: number } {
+  const d = el.getAttribute('d') ?? ''
+  const mMatch = /M[\s,]*([\d.eE+-]+)[\s,]+([\d.eE+-]+)/.exec(d)
+  const msgY = mMatch ? parseFloat(mMatch[2]) : 0
+  const vMatch = /V[\s,]*([\d.eE+-]+)/.exec(d)
+  const selfLoopHeight = vMatch ? Math.abs(parseFloat(vMatch[1]) - msgY) : 20
+  return { msgY, selfLoopHeight }
+}
+
+function extractSequenceMessages(svgEl: Element, texts: TextNode[]): SequenceMessage[] {
+  const messages: SequenceMessage[] = []
+
+  for (const el of svgEl.querySelectorAll<Element>('line[data-et="message"], path[data-et="message"]')) {
+    const id = el.getAttribute('data-id') ?? el.getAttribute('id') ?? ''
+    const fromActor = el.getAttribute('data-from') ?? ''
+    const toActor = el.getAttribute('data-to') ?? ''
+    const isSelf = el.tagName.toLowerCase() === 'path'
+    const cls = el.getAttribute('class') ?? ''
+    const markerEnd = el.getAttribute('marker-end') ?? ''
+    const arrowKind = parseMarkerKind(cls, markerEnd)
+
+    let msgY = 0
+    let selfLoopHeight = 20
+
+    if (isSelf) {
+      const parsed = parseSelfMessage(el)
+      msgY = parsed.msgY
+      selfLoopHeight = parsed.selfLoopHeight
+    } else {
+      msgY = parseFloat(el.getAttribute('y1') ?? '0')
+    }
+
+    const x1 = parseFloat(el.getAttribute('x1') ?? '0')
+    const x2 = parseFloat(el.getAttribute('x2') ?? '0')
+    const label = associateLabel(x1, x2, msgY, isSelf, selfLoopHeight, texts)
+
+    messages.push({
+      id,
+      fromActor,
+      toActor,
+      y: msgY,
+      isSelf,
+      selfLoopHeight: isSelf ? selfLoopHeight : undefined,
+      label,
+      arrowKind,
+    })
+  }
+
+  return messages
+}
+
+function bootstrapSequence(svgEl: Element): SequenceGraph {
+  const viewBox = readViewBox(svgEl)
+  const texts = collectMessageTexts(svgEl)
+  const actors = extractSequenceActors(svgEl)
+  const messages = extractSequenceMessages(svgEl, texts)
+  return { kind: 'sequence', actors, messages, viewBox }
+}
+
+// ─── Entry point ────────────────────────────────────────────────────────────
+
+function emptyFlowchart(): FlowchartGraph {
+  return { kind: 'flowchart', nodes: [], edges: [], routing: 'orthogonal', viewBox: '0 0 800 600' }
+}
+
+export function bootstrapGraph(svgString: string): DiagramGraph {
+  const svgEl = parseSvg(svgString)
+  if (!svgEl) {
+    console.warn('[bootstrap] no <svg> found in rendered output')
+    return emptyFlowchart()
+  }
+  if (svgEl.querySelector('[data-et="life-line"]')) return bootstrapSequence(svgEl)
+  return bootstrapFlowchart(svgEl)
 }

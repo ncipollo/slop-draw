@@ -176,6 +176,29 @@
   min-width: 10px;
 }
 
+.actorBox {
+  fill: #fff;
+  stroke: #374151;
+  stroke-width: 1.5px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .actorBox {
+    fill: #1f2937;
+    stroke: #9ca3af;
+  }
+}
+
+.nodeSelected .actorBox {
+  stroke: #3b82f6;
+  stroke-width: 2.5px;
+}
+
+.routingButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .routingToggle {
   display: flex;
   gap: 2px;
