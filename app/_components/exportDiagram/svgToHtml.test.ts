@@ -19,4 +19,10 @@ describe('svgToHtml', () => {
     const text = new TextDecoder().decode(bytes)
     expect(text).toContain('<svg id="test"/>')
   })
+
+  it('uses Arial font-family in the wrapper style', () => {
+    const bytes = svgToHtml('<svg/>', 'test')
+    const text = new TextDecoder().decode(bytes)
+    expect(text).toContain('font-family:Arial')
+  })
 })

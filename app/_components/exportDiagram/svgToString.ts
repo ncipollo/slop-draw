@@ -42,6 +42,12 @@ function inlineShapeStyles(clone: SVGSVGElement, original: SVGSVGElement): void 
   })
 }
 
+function applyRootFontFamily(clone: SVGSVGElement): void {
+  const fontFamily =
+    (document.body && getComputedStyle(document.body).fontFamily) || 'Arial, Helvetica, sans-serif'
+  clone.setAttribute('font-family', fontFamily || 'Arial, Helvetica, sans-serif')
+}
+
 function replaceForeignObjects(clone: SVGSVGElement): void {
   clone.querySelectorAll('foreignObject').forEach((fo) => {
     const w = parseFloat(fo.getAttribute('width') ?? '0')
@@ -53,7 +59,6 @@ function replaceForeignObjects(clone: SVGSVGElement): void {
     textEl.setAttribute('text-anchor', 'middle')
     textEl.setAttribute('dominant-baseline', 'middle')
     textEl.setAttribute('font-size', '14')
-    textEl.setAttribute('font-family', 'Arial, Helvetica, sans-serif')
     textEl.textContent = text
     fo.replaceWith(textEl)
   })
@@ -64,6 +69,8 @@ export function svgToString(svg: SVGSVGElement): string {
   if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
   if (!clone.getAttribute('xmlns:xlink'))
     clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+
+  applyRootFontFamily(clone)
 
   // Remove percentage dimensions so viewBox controls intrinsic size in standalone SVG images
   clone.style.removeProperty('width')
