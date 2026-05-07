@@ -80,6 +80,7 @@
   cursor: grab;
   user-select: none;
   padding: 32px;
+  position: relative;
 }
 
 .panning {
@@ -224,4 +225,75 @@
   font-size: 14px;
   padding: 32px;
   text-align: center;
+}
+
+/* Zoom controls */
+
+.zoomControls {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--background);
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+@media (prefers-color-scheme: dark) {
+  .zoomControls {
+    border-color: #4b5563;
+    background: #111827;
+  }
+}
+
+.zoomButton {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--foreground);
+  transition: background 0.15s ease;
+}
+
+.zoomButton:hover {
+  background: #e5e7eb;
+}
+
+.zoomButton:active {
+  background: #d1d5db;
+}
+
+@media (prefers-color-scheme: dark) {
+  .zoomButton:hover {
+    background: #374151;
+  }
+  .zoomButton:active {
+    background: #4b5563;
+  }
+}
+
+.zoomLabel {
+  font-size: 12px;
+  color: #6b7280;
+  min-width: 40px;
+  text-align: center;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-color-scheme: dark) {
+  .zoomLabel {
+    color: #9ca3af;
+  }
 }

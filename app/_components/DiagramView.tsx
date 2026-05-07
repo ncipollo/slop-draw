@@ -10,6 +10,7 @@ import { useExportMenuListener } from './diagramView/useExportMenuListener'
 import { useGraphState } from './diagramView/useGraphState'
 import { useNodeDrag } from './diagramView/useNodeDrag'
 import { useLabelEdit } from './diagramView/useLabelEdit'
+import { useZoom } from './diagramView/useZoom'
 import { DiagramCanvas } from './diagramView/DiagramCanvas'
 
 export function DiagramView() {
@@ -19,6 +20,7 @@ export function DiagramView() {
   const svgContainerRef = useRef<HTMLDivElement>(null)
 
   const graphState = useGraphState()
+  const { zoom, zoomIn, zoomOut, zoomReset, handleZoomWheel } = useZoom()
 
   const onRendered = useCallback(
     (svgString: string) => {
@@ -111,10 +113,12 @@ export function DiagramView() {
         onMouseMove={panHandlers.onMouseMove}
         onMouseUp={panHandlers.onMouseUp}
         onMouseLeave={panHandlers.onMouseUp}
+        onWheel={handleZoomWheel}
       >
         <div
           ref={svgContainerRef}
           className={styles.diagram}
+          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
           onClick={handleCanvasClick}
         >
           {errorMessage && <pre className={styles.diagramError}>{errorMessage}</pre>}
@@ -138,6 +142,37 @@ export function DiagramView() {
             </div>
           )}
         </div>
+        {graphState.graph && (
+          <div className={styles.zoomControls}>
+            <button
+              className={styles.zoomButton}
+              onClick={zoomOut}
+              title="Zoom out (⌘/Ctrl −)"
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+            <span className={styles.zoomLabel}>
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              className={styles.zoomButton}
+              onClick={zoomIn}
+              title="Zoom in (⌘/Ctrl +)"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+            <button
+              className={styles.zoomButton}
+              onClick={zoomReset}
+              title="Reset zoom (⌘/Ctrl 0)"
+              aria-label="Reset zoom"
+            >
+              ⟲
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
