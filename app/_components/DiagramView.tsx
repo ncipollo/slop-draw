@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import styles from './DiagramView.module.css'
+import { exportDiagram } from './exportDiagram'
 
 // Lazily loaded to avoid Turbopack splitting mermaid into many small chunks
 // that WKWebView can fail to fetch during initial page load.
@@ -62,6 +63,21 @@ export function DiagramView() {
       cancelled = true
     }
   }, [committedSource])
+
+  // Listen for File → Export menu event emitted by the Tauri backend
+  useEffect(() => {
+    let unlisten: (() => void) | null = null
+    import('@tauri-apps/api/event')
+      .then(({ listen }) =>
+        listen('menu-export', () => {
+          const svg = svgContainerRef.current?.querySelector('svg') ?? null
+          exportDiagram(svg as SVGSVGElement | null)
+        })
+      )
+      .then((fn) => { unlisten = fn })
+      .catch(() => {/* not running in Tauri */})
+    return () => { unlisten?.() }
+  }, [])
 
   // Apply / re-apply selection highlight after render or selection change
   useEffect(() => {

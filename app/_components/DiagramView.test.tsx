@@ -3,6 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DiagramView } from './DiagramView'
 
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockResolvedValue(() => {}) }))
+vi.mock('./exportDiagram', () => ({ exportDiagram: vi.fn() }))
+
 vi.mock('mermaid', () => ({
   default: {
     initialize: vi.fn(),
