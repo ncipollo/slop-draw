@@ -50,4 +50,44 @@ describe('DiagramView', () => {
       ),
     )
   })
+
+  it('zoom controls are not shown before render', () => {
+    render(<DiagramView />)
+    expect(screen.queryByRole('button', { name: /zoom in/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /zoom out/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /reset zoom/i })).not.toBeInTheDocument()
+  })
+
+  it('zoom controls appear after diagram renders', async () => {
+    const user = userEvent.setup()
+    render(<DiagramView />)
+
+    const button = screen.getByRole('button', { name: /render/i })
+    await user.click(button)
+
+    expect(await screen.findByRole('button', { name: /zoom in/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /zoom out/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /reset zoom/i })).toBeInTheDocument()
+  })
+
+  it('zoom percentage starts at 100% and changes when buttons are clicked', async () => {
+    const user = userEvent.setup()
+    render(<DiagramView />)
+
+    await user.click(screen.getByRole('button', { name: /render/i }))
+    await screen.findByRole('button', { name: /zoom in/i })
+
+    expect(screen.getByText('100%')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /zoom in/i }))
+    expect(screen.getByText('110%')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /zoom out/i }))
+    expect(screen.getByText('100%')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /zoom out/i }))
+    await user.click(screen.getByRole('button', { name: /zoom out/i }))
+    await user.click(screen.getByRole('button', { name: /reset zoom/i }))
+    expect(screen.getByText('100%')).toBeInTheDocument()
+  })
 })
