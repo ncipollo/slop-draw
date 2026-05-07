@@ -7,22 +7,33 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },
   "dependencies": {
+    "mermaid": "^11",
     "next": "16.2.5",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.1",
+    "@testing-library/dom": "^10",
+    "@testing-library/jest-dom": "^6",
+    "@testing-library/react": "^16",
+    "@testing-library/user-event": "^14",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4",
     "eslint": "^9",
     "eslint-config-next": "16.2.5",
-    "typescript": "^5"
+    "jsdom": "^26",
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^5",
+    "vitest": "^3"
   }
 }
