@@ -267,9 +267,9 @@ function associateLabel(
 
   for (const t of texts) {
     const dy = Math.abs(t.y - msgY)
-    if (dy > 30) continue
+    if (dy > 50) continue
     const inBand = isSelf
-      ? t.y >= msgY - 5 && t.y <= msgY + selfLoopHeight + 5
+      ? t.y >= msgY - 50 && t.y <= msgY + selfLoopHeight + 5
       : t.x >= minX - 10 && t.x <= maxX + 10
     if (!inBand) continue
     if (dy < bestDist) {
@@ -279,6 +279,30 @@ function associateLabel(
   }
 
   return best?.text ?? ''
+}
+
+// Walk SVG in document order and pair each text.messageText with the message
+// element (line or path) that immediately follows it in the tree — the same
+// order Mermaid v11 emits them (drawMessage appends the text before the line).
+function pairMessagesWithTexts(svgEl: Element): Map<Element, string> {
+  const pairs = new Map<Element, string>()
+  let pendingText = ''
+
+  for (const el of svgEl.querySelectorAll(
+    'text.messageText, line[data-et="message"], path[data-et="message"]',
+  )) {
+    if (el.getAttribute('data-et') === 'message') {
+      if (pendingText) {
+        pairs.set(el, pendingText)
+        pendingText = ''
+      }
+    } else {
+      const text = (el.textContent ?? '').trim()
+      if (text) pendingText = text
+    }
+  }
+
+  return pairs
 }
 
 function extractActorLabel(actorGroup: Element | null, fallback: string): string {
@@ -345,12 +369,26 @@ function parseSelfMessage(el: Element): { msgY: number; selfLoopHeight: number }
   const d = el.getAttribute('d') ?? ''
   const mMatch = /M[\s,]*([\d.eE+-]+)[\s,]+([\d.eE+-]+)/.exec(d)
   const msgY = mMatch ? parseFloat(mMatch[2]) : 0
+
+  // Orthogonal path (H/V commands)
   const vMatch = /V[\s,]*([\d.eE+-]+)/.exec(d)
-  const selfLoopHeight = vMatch ? Math.abs(parseFloat(vMatch[1]) - msgY) : 20
-  return { msgY, selfLoopHeight }
+  if (vMatch) {
+    return { msgY, selfLoopHeight: Math.abs(parseFloat(vMatch[1]) - msgY) }
+  }
+
+  // Bezier path (C cp1 cp2 endX,endY) — end-point Y is the 6th coordinate
+  const cMatch = /C[\s,]*([\d.eE+-]+)[\s,]+([\d.eE+-]+)[\s,]+([\d.eE+-]+)[\s,]+([\d.eE+-]+)[\s,]+([\d.eE+-]+)[\s,]+([\d.eE+-]+)/.exec(
+    d,
+  )
+  if (cMatch) {
+    return { msgY, selfLoopHeight: Math.abs(parseFloat(cMatch[6]) - msgY) }
+  }
+
+  return { msgY, selfLoopHeight: 20 }
 }
 
 function extractSequenceMessages(svgEl: Element, texts: TextNode[]): SequenceMessage[] {
+  const pairMap = pairMessagesWithTexts(svgEl)
   const messages: SequenceMessage[] = []
 
   for (const el of svgEl.querySelectorAll<Element>('line[data-et="message"], path[data-et="message"]')) {
@@ -375,7 +413,8 @@ function extractSequenceMessages(svgEl: Element, texts: TextNode[]): SequenceMes
 
     const x1 = parseFloat(el.getAttribute('x1') ?? '0')
     const x2 = parseFloat(el.getAttribute('x2') ?? '0')
-    const label = associateLabel(x1, x2, msgY, isSelf, selfLoopHeight, texts)
+    const label =
+      pairMap.get(el) ?? associateLabel(x1, x2, msgY, isSelf, selfLoopHeight, texts)
 
     messages.push({
       id,
