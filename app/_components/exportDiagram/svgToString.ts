@@ -148,10 +148,9 @@ export function svgToString(svg: SVGSVGElement): string {
   // Compute content bounds from actual element positions (handles nodes moved outside original viewBox)
   const viewBox = computeContentViewBox(svg)
   const vbParts = viewBox.trim().split(/\s+/).map(Number)
-  const [vbX, vbY, vbW, vbH] = vbParts
   clone.setAttribute('viewBox', viewBox)
-  clone.setAttribute('width', String(vbW))
-  clone.setAttribute('height', String(vbH))
+  clone.setAttribute('width', String(vbParts[2]))
+  clone.setAttribute('height', String(vbParts[3]))
 
   // Remove percentage dimensions so viewBox + explicit attrs control intrinsic size
   clone.style.removeProperty('width')
@@ -163,15 +162,6 @@ export function svgToString(svg: SVGSVGElement): string {
 
   // Replace foreignObject HTML (causes canvas taint in WKWebView) with SVG text
   replaceForeignObjects(clone)
-
-  // Add background rect as first child (rendered behind all content)
-  const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
-  bgRect.setAttribute('x', String(vbX))
-  bgRect.setAttribute('y', String(vbY))
-  bgRect.setAttribute('width', String(vbW))
-  bgRect.setAttribute('height', String(vbH))
-  bgRect.setAttribute('fill', 'var(--background)')
-  clone.insertBefore(bgRect, clone.firstChild)
 
   // Resolve CSS variable references left in SVG presentation attributes
   const raw = '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(clone)
